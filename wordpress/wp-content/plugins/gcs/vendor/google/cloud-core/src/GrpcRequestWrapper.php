@@ -22,14 +22,12 @@ use Google\Cloud\Core\Exception;
 use Google\ApiCore\ApiException;
 use Google\ApiCore\OperationResponse;
 use Google\ApiCore\PagedListResponse;
-use Google\ApiCore\RetrySettings;
 use Google\ApiCore\Serializer;
 use Google\ApiCore\ServerStream;
 use Google\Protobuf\Internal\Message;
 use Google\Rpc\BadRequest;
 use Google\Rpc\Code;
 use Google\Rpc\RetryInfo;
-use Grpc;
 
 /**
  * The GrpcRequestWrapper is responsible for delivering gRPC requests.
@@ -89,9 +87,10 @@ class GrpcRequestWrapper
     public function __construct(array $config = [])
     {
         $this->setCommonDefaults($config);
+
         $config += [
             'authHttpHandler' => null,
-            'serializer' => new Serializer(),
+            'serializer' => new Serializer,
             'grpcOptions' => []
         ];
 
@@ -142,8 +141,12 @@ class GrpcRequestWrapper
 
         try {
             return $this->handleResponse($backoff->execute($request, $args));
-        } catch (ApiException $ex) {
-            throw $this->convertToGoogleException($ex);
+        } catch (\Exception $ex) {
+            if ($ex instanceof ApiException) {
+                throw $this->convertToGoogleException($ex);
+            }
+
+            throw $ex;
         }
     }
 
@@ -151,7 +154,7 @@ class GrpcRequestWrapper
      * Serializes a gRPC response.
      *
      * @param mixed $response
-     * @return \Generator|array|null
+     * @return \Generator|OperationResponse|array|null
      */
     private function handleResponse($response)
     {
@@ -180,7 +183,7 @@ class GrpcRequestWrapper
      * @param ServerStream $response
      * @return \Generator|array|null
      */
-    private function handleStream(ServerStream $response)
+    private function handleStream($response)
     {
         try {
             foreach ($response->readAll() as $count => $result) {
@@ -195,10 +198,10 @@ class GrpcRequestWrapper
     /**
      * Convert a ApiCore exception to a Google Exception.
      *
-     * @param ApiException $ex
+     * @param \Exception $ex
      * @return Exception\ServiceException
      */
-    private function convertToGoogleException(ApiException $ex)
+    private function convertToGoogleException($ex)
     {
         switch ($ex->getCode()) {
             case Code::INVALID_ARGUMENT:

@@ -1,0 +1,39 @@
+.type-radio-image .option-tree-ui-radio-images img{
+    width: 110px;
+}
+.wp-core-ui .notice.is-dismissible{
+    display: block;
+}
+.widget-content li{
+    list-style: none;
+}
+.form-field .radio-images{
+    float: left;
+    margin: 10px 10px 10px 0;
+}
+.form-field .radio-images > p{
+    display: none;
+}
+.form-field .radio-images img{
+    display: block;
+    padding: 5px;
+    border: 1px solid #ccc;
+}
+.form-field .radio-image.radio-image-selected{
+    border-color: #464646;
+}
+.form-field.type-radio{
+    overflow: hidden;
+}
+
+/* Option Tree CSS */
+.postbox .inside div[id$="color_desc"] .format-setting-label{
+    border: none;
+    text-transform: uppercase;
+    margin: 0;
+    padding: 0;
+}
+.postbox .inside div[id$="color_desc"] .format-setting-label h3{
+    margin-bottom: -30px;
+    color: #0085ba !important;
+}

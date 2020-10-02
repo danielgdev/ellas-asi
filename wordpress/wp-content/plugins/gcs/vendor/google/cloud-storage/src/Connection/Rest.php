@@ -27,8 +27,12 @@ use Google\Cloud\Core\Upload\StreamableUploader;
 use Google\Cloud\Core\UriTrait;
 use Google\Cloud\Storage\Connection\ConnectionInterface;
 use Google\Cloud\Storage\StorageClient;
+use Google\CRC32\Builtin;
+use Google\CRC32\CRC32;
 use GuzzleHttp\Psr7;
 use GuzzleHttp\Psr7\Request;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\StreamInterface;
 
 /**
  * Implementation of the
@@ -39,14 +43,36 @@ class Rest implements ConnectionInterface
     use RestTrait;
     use UriTrait;
 
-    const BASE_URI = 'https://www.googleapis.com/storage/v1/';
-    const UPLOAD_URI = 'https://www.googleapis.com/upload/storage/v1/b/{bucket}/o{?query*}';
-    const DOWNLOAD_URI = 'https://www.googleapis.com/storage/v1/b/{bucket}/o/{object}{?query*}';
+    /**
+     * @deprecated
+     */
+    const BASE_URI = 'https://storage.googleapis.com/storage/v1/';
+
+    const DEFAULT_API_ENDPOINT = 'https://storage.googleapis.com';
+
+    /**
+     * @deprecated
+     */
+    const UPLOAD_URI = 'https://storage.googleapis.com/upload/storage/v1/b/{bucket}/o{?query*}';
+
+    const UPLOAD_PATH = 'upload/storage/v1/b/{bucket}/o{?query*}';
+
+    /**
+     * @deprecated
+     */
+    const DOWNLOAD_URI = 'https://storage.googleapis.com/storage/v1/b/{bucket}/o/{object}{?query*}';
+
+    const DOWNLOAD_PATH = 'storage/v1/b/{bucket}/o/{object}{?query*}';
 
     /**
      * @var string
      */
     private $projectId;
+
+    /**
+     * @var string
+     */
+    private $apiEndpoint;
 
     /**
      * @param array $config
@@ -55,13 +81,16 @@ class Rest implements ConnectionInterface
     {
         $config += [
             'serviceDefinitionPath' => __DIR__ . '/ServiceDefinition/storage-v1.json',
-            'componentVersion' => StorageClient::VERSION
+            'componentVersion' => StorageClient::VERSION,
+            'apiEndpoint' => self::DEFAULT_API_ENDPOINT
         ];
+
+        $this->apiEndpoint = $this->getApiEndpoint(self::DEFAULT_API_ENDPOINT, $config);
 
         $this->setRequestWrapper(new RequestWrapper($config));
         $this->setRequestBuilder(new RequestBuilder(
             $config['serviceDefinitionPath'],
-            self::BASE_URI
+            $this->apiEndpoint
         ));
 
         $this->projectId = $this->pluck('projectId', $config, false);
@@ -216,32 +245,31 @@ class Rest implements ConnectionInterface
      */
     public function downloadObject(array $args = [])
     {
-        $args += [
-            'bucket' => null,
-            'object' => null,
-            'generation' => null,
-            'userProject' => null
-        ];
-
-        $requestOptions = array_intersect_key($args, [
-            'restOptions' => null,
-            'retries' => null
-        ]);
-
-        $uri = $this->expandUri(self::DOWNLOAD_URI, [
-            'bucket' => $args['bucket'],
-            'object' => $args['object'],
-            'query' => [
-                'generation' => $args['generation'],
-                'alt' => 'media',
-                'userProject' => $args['userProject']
-            ]
-        ]);
+        list($request, $requestOptions) = $this->buildDownloadObjectParams($args);
 
         return $this->requestWrapper->send(
-            new Request('GET', Psr7\uri_for($uri)),
+            $request,
             $requestOptions
         )->getBody();
+    }
+
+    /**
+     * @param array $args
+     * @experimental The experimental flag means that while we believe this method
+     *      or class is ready for use, it may change before release in backwards-
+     *      incompatible ways. Please use with caution, and test thoroughly when
+     *      upgrading.
+     */
+    public function downloadObjectAsync(array $args = [])
+    {
+        list($request, $requestOptions) = $this->buildDownloadObjectParams($args);
+
+        return $this->requestWrapper->sendAsync(
+            $request,
+            $requestOptions
+        )->then(function (ResponseInterface $response) {
+            return $response->getBody();
+        });
     }
 
     /**
@@ -273,7 +301,7 @@ class Rest implements ConnectionInterface
         return new $uploaderClass(
             $this->requestWrapper,
             $args['data'],
-            $this->expandUri(self::UPLOAD_URI, $uriParams),
+            $this->expandUri($this->apiEndpoint . self::UPLOAD_PATH, $uriParams),
             $args['uploaderOptions']
         );
     }
@@ -304,9 +332,11 @@ class Rest implements ConnectionInterface
             $args['name'] = basename($args['data']->getMetadata('uri'));
         }
 
-        // @todo add support for rolling hash
-        if ($args['validate'] && !isset($args['metadata']['md5Hash'])) {
+        $validate = $this->chooseValidationMethod($args);
+        if ($validate === 'md5') {
             $args['metadata']['md5Hash'] = base64_encode(Psr7\hash($args['data'], 'md5', true));
+        } elseif ($validate === 'crc32') {
+            $args['metadata']['crc32c'] = $this->crcFromStream($args['data']);
         }
 
         $args['metadata']['name'] = $args['name'];
@@ -393,5 +423,177 @@ class Rest implements ConnectionInterface
     public function getServiceAccount(array $args = [])
     {
         return $this->send('projects.resources.serviceAccount', 'get', $args);
+    }
+
+    /**
+     * @param array $args
+     */
+    public function lockRetentionPolicy(array $args = [])
+    {
+        return $this->send('buckets', 'lockRetentionPolicy', $args);
+    }
+
+    /**
+     * @param array $args
+     */
+    public function createHmacKey(array $args = [])
+    {
+        return $this->send('projects.resources.hmacKeys', 'create', $args);
+    }
+
+    /**
+     * @param array $args
+     */
+    public function deleteHmacKey(array $args = [])
+    {
+        return $this->send('projects.resources.hmacKeys', 'delete', $args);
+    }
+
+    /**
+     * @param array $args
+     */
+    public function getHmacKey(array $args = [])
+    {
+        return $this->send('projects.resources.hmacKeys', 'get', $args);
+    }
+
+    /**
+     * @param array $args
+     */
+    public function updateHmacKey(array $args = [])
+    {
+        return $this->send('projects.resources.hmacKeys', 'update', $args);
+    }
+
+    /**
+     * @param array $args
+     */
+    public function listHmacKeys(array $args = [])
+    {
+        return $this->send('projects.resources.hmacKeys', 'list', $args);
+    }
+
+    /**
+     * @param array $args
+     * @return array
+     */
+    private function buildDownloadObjectParams(array $args)
+    {
+        $args += [
+            'bucket' => null,
+            'object' => null,
+            'generation' => null,
+            'userProject' => null
+        ];
+
+        $requestOptions = array_intersect_key($args, [
+            'restOptions' => null,
+            'retries' => null,
+            'restRetryFunction' => null,
+            'restCalcDelayFunction' => null,
+            'restDelayFunction' => null
+        ]);
+
+        $uri = $this->expandUri($this->apiEndpoint . self::DOWNLOAD_PATH, [
+            'bucket' => $args['bucket'],
+            'object' => $args['object'],
+            'query' => [
+                'generation' => $args['generation'],
+                'alt' => 'media',
+                'userProject' => $args['userProject']
+            ]
+        ]);
+
+        return [
+            new Request('GET', Psr7\uri_for($uri)),
+            $requestOptions
+        ];
+    }
+
+    /**
+     * Choose a upload validation method based on user input and platform
+     * requirements.
+     *
+     * @param array $args
+     * @return bool|string
+     */
+    private function chooseValidationMethod(array $args)
+    {
+        // If the user provided a hash, skip hashing.
+        if (isset($args['metadata']['md5Hash']) || isset($args['metadata']['crc32c'])) {
+            return false;
+        }
+
+        $validate = $args['validate'];
+        if (in_array($validate, [false, 'crc32', 'md5'], true)) {
+            return $validate;
+        }
+
+        // not documented, but the feature is called crc32c, so let's accept that as input anyways.
+        if ($validate === 'crc32c') {
+            return 'crc32';
+        }
+
+        // is the extension loaded?
+        if ($this->crc32cExtensionLoaded()) {
+            return 'crc32';
+        }
+
+        // is crc32c available in `hash()`?
+        if ($this->supportsBuiltinCrc32c()) {
+            return 'crc32';
+        }
+
+        return 'md5';
+    }
+
+    /**
+     * Generate a CRC32c checksum from a stream.
+     *
+     * @param StreamInterface $data
+     * @return string
+     */
+    private function crcFromStream(StreamInterface $data)
+    {
+        $pos = $data->tell();
+
+        if ($pos > 0) {
+            $data->rewind();
+        }
+
+        $crc32c = CRC32::create(CRC32::CASTAGNOLI);
+
+        $data->rewind();
+        while (!$data->eof()) {
+            $crc32c->update($data->read(1048576));
+        }
+
+        $data->seek($pos);
+
+        return base64_encode($crc32c->hash(true));
+    }
+
+    /**
+     * Check if the crc32c extension is available.
+     *
+     * Protected access for unit testing.
+     *
+     * @return bool
+     */
+    protected function crc32cExtensionLoaded()
+    {
+        return extension_loaded('crc32c');
+    }
+
+    /**
+     * Check if hash() supports crc32c.
+     *
+     * Protected access for unit testing.
+     *
+     * @return bool
+     */
+    protected function supportsBuiltinCrc32c()
+    {
+        return Builtin::supports(CRC32::CASTAGNOLI);
     }
 }
