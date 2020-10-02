@@ -1,0 +1,17 @@
+{
+  "name": "@sword.dev/ellas-asi",
+  "version": "1.0.0",
+  "description": "WordPress's App, deployed on Google App Engine.",
+  "repository": "https://github.com/danielgalindo-dev/ellas-asi",
+  "author": "[Daniel Galindo](hello@danielgalindo.dev)",
+  "license": "MIT",
+  "scripts": {
+    "postinstall": "composer install",
+    "wordpress:create": "php vendor/bin/wp-gae create && yarn config",
+    "wordpress:update": "php vendor/bin/wp-gae update wordpress && yarn config",
+    "config": "mv wordpress/app.yaml wordpress/cron.yaml wordpress/php.ini .",
+    "dev": "php -S localhost:8000 -t wordpress",
+    "deploy": "gcloud app deploy app.yaml cron.yaml --project=$GOOGLE_CLOUD_PROJECT"
+  },
+  "private": true
+}
