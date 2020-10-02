@@ -23,5 +23,5 @@ node_modules/
 *.sqlite
 
 # Google App Engine
-vendor
-backup
+vendor/
+backup/
