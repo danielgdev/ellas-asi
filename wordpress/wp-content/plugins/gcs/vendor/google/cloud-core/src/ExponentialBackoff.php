@@ -30,7 +30,7 @@ class ExponentialBackoff
     private $retries;
 
     /**
-     * @var callable|null
+     * @var callable
      */
     private $retryFunction;
 
@@ -38,11 +38,6 @@ class ExponentialBackoff
      * @var callable
      */
     private $delayFunction;
-
-    /**
-     * @var callable|null
-     */
-    private $calcDelayFunction;
 
     /**
      * @param int $retries [optional] Number of retries for a failed request.
@@ -54,7 +49,7 @@ class ExponentialBackoff
         $this->retryFunction = $retryFunction;
         // @todo revisit this approach
         // @codeCoverageIgnoreStart
-        $this->delayFunction = static function ($delay) {
+        $this->delayFunction = function ($delay) {
             usleep($delay);
         };
         // @codeCoverageIgnoreEnd
@@ -71,7 +66,6 @@ class ExponentialBackoff
     public function execute(callable $function, array $arguments = [])
     {
         $delayFunction = $this->delayFunction;
-        $calcDelayFunction = $this->calcDelayFunction ?: [$this, 'calculateDelay'];
         $retryAttempt = 0;
         $exception = null;
 
@@ -89,7 +83,7 @@ class ExponentialBackoff
                     break;
                 }
 
-                $delayFunction($calcDelayFunction($retryAttempt));
+                $delayFunction($this->calculateDelay($retryAttempt));
                 $retryAttempt++;
             }
         }
@@ -98,8 +92,6 @@ class ExponentialBackoff
     }
 
     /**
-     * If not set, defaults to using `usleep`.
-     *
      * @param callable $delayFunction
      * @return void
      */
@@ -109,24 +101,12 @@ class ExponentialBackoff
     }
 
     /**
-     * If not set, defaults to using
-     * {@see Google\Cloud\Core\ExponentialBackoff::calculateDelay()}.
-     *
-     * @param callable $calcDelayFunction
-     * @return void
-     */
-    public function setCalcDelayFunction(callable $calcDelayFunction)
-    {
-        $this->calcDelayFunction = $calcDelayFunction;
-    }
-
-    /**
      * Calculates exponential delay.
      *
-     * @param int $attempt The attempt number used to calculate the delay.
+     * @param int $attempt
      * @return int
      */
-    public static function calculateDelay($attempt)
+    private function calculateDelay($attempt)
     {
         return min(
             mt_rand(0, 1000000) + (pow(2, $attempt) * 1000000),

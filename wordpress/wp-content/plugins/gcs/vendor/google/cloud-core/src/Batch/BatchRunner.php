@@ -126,7 +126,7 @@ class BatchRunner
      * @param string $identifier Unique identifier of the job.
      * @param mixed $item It needs to be serializable.
      *
-     * @return void
+     * @return bool true on success, false on failure
      * @throws \RuntimeException
      */
     public function submitItem($identifier, $item)
@@ -138,7 +138,7 @@ class BatchRunner
             );
         }
         $idNum = $job->id();
-        $this->processor->submit($item, $idNum);
+        return $this->processor->submit($item, $idNum);
     }
 
     /**

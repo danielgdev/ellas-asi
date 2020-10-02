@@ -19,8 +19,6 @@ namespace Google\Cloud\Core;
 
 /**
  * Provides easier to read debug information when dumping a class to stdout.
- *
- * @codeCoverageIgnore
  */
 trait DebugInfoTrait
 {

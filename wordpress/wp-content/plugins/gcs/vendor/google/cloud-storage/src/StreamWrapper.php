@@ -17,6 +17,7 @@
 
 namespace Google\Cloud\Storage;
 
+use Google\Cloud\Core\Exception\NotFoundException;
 use Google\Cloud\Core\Exception\ServiceException;
 use Google\Cloud\Storage\Bucket;
 use GuzzleHttp\Psr7\CachingStream;
@@ -38,7 +39,7 @@ class StreamWrapper
     const DIRECTORY_READABLE_MODE = 16676; // 40444 in octal
 
     /**
-     * @var resource|null Must be public according to the PHP documentation.
+     * @var resource Must be public according to the PHP documentation.
      */
     public $context;
 
@@ -70,7 +71,7 @@ class StreamWrapper
     private static $clients = [];
 
     /**
-     * @var ObjectIterator Used for iterating through a directory
+     * @var ObjectsItemIterator Used for iterating through a directory
      */
     private $directoryIterator;
 
@@ -309,11 +310,10 @@ class StreamWrapper
      */
     public function dir_readdir()
     {
-        $name = $this->directoryIterator->current();
-        if ($name) {
+        $object = $this->directoryIterator->current();
+        if ($object) {
             $this->directoryIterator->next();
-
-            return $name;
+            return $object->name();
         }
 
         return false;
@@ -327,33 +327,10 @@ class StreamWrapper
     public function dir_rewinddir()
     {
         try {
-            $iterator = $this->bucket->objects([
+            $this->directoryIterator = $this->bucket->objects([
                 'prefix' => $this->file,
                 'fields' => 'items/name,nextPageToken'
             ]);
-
-            // The delimiter options do not give us what we need, so instead we
-            // list all results matching the given prefix, enumerate the
-            // iterator, filter and transform results, and yield a fresh
-            // generator containing only the directory listing.
-            $this->directoryIterator = call_user_func(function () use ($iterator) {
-                $yielded = [];
-                $pathLen = strlen($this->makeDirectory($this->file));
-                foreach ($iterator as $object) {
-                    $name = substr($object->name(), $pathLen);
-                    $parts = explode('/', $name);
-
-                    // since the service call returns nested results and we only
-                    // want to yield results directly within the requested directory,
-                    // check if we've already yielded this value.
-                    if ($parts[0] === "" || in_array($parts[0], $yielded)) {
-                        continue;
-                    }
-
-                    $yielded[] = $parts[0];
-                    yield $name => $parts[0];
-                }
-            });
         } catch (ServiceException $e) {
             return false;
         }
@@ -388,22 +365,11 @@ class StreamWrapper
             // If the file name is empty, we were trying to create a bucket. In this case,
             // don't create the placeholder file.
             if ($this->file != '') {
-                $bucketInfo = $this->bucket->info();
-                $ublEnabled = isset($bucketInfo['iamConfiguration']['uniformBucketLevelAccess']) &&
-                    $bucketInfo['iamConfiguration']['uniformBucketLevelAccess']['enabled'] === true;
-
-                // if bucket has uniform bucket level access enabled, don't set ACLs.
-                $acl = [];
-                if (!$ublEnabled) {
-                    $acl = [
-                        'predefinedAcl' => $predefinedAcl
-                    ];
-                }
-
                 // Fake a directory by creating an empty placeholder file whose name ends in '/'
                 $this->bucket->upload('', [
                     'name' => $this->file,
-                ] + $acl);
+                    'predefinedAcl' => $predefinedAcl
+                ]);
             }
         } catch (ServiceException $e) {
             return false;
@@ -420,32 +386,27 @@ class StreamWrapper
      */
     public function rename($from, $to)
     {
-        $this->openPath($from);
-        $destination = (array) parse_url($to) + [
+        $url = (array) parse_url($to) + [
             'path' => '',
             'host' => ''
         ];
 
-        $destinationBucket = $destination['host'];
-        $destinationPath = substr($destination['path'], 1);
+        $destinationBucket = $url['host'];
+        $destinationPath = substr($url['path'], 1);
 
-        // loop through to rename file and children, if given path is a directory.
-        $objects = $this->bucket->objects([
-            'prefix' => $this->file
-        ]);
+        $this->dir_opendir($from, []);
+        foreach ($this->directoryIterator as $file) {
+            $name = $file->name();
+            $newPath = str_replace($this->file, $destinationPath, $name);
 
-        foreach ($objects as $obj) {
-            $oldName = $obj->name();
-            $newPath = str_replace($this->file, $destinationPath, $oldName);
+            $obj = $this->bucket->object($name);
             try {
-                $obj->rename($newPath, [
-                    'destinationBucket' => $destinationBucket
-                ]);
+                $obj->rename($newPath, ['destinationBucket' => $destinationBucket]);
             } catch (ServiceException $e) {
+                // If any rename calls fail, abort and return false
                 return false;
             }
         }
-
         return true;
     }
 
@@ -520,9 +481,8 @@ class StreamWrapper
         $client = $this->openPath($path);
 
         // if directory
-        $dir = $this->getDirectoryInfo($this->file);
-        if ($dir) {
-            return $this->urlStatDirectory($dir);
+        if ($this->isDirectory($this->file)) {
+            return $this->urlStatDirectory();
         }
 
         return $this->urlStatFile();
@@ -556,10 +516,6 @@ class StreamWrapper
      */
     private function makeDirectory($path)
     {
-        if ($path == '' or $path == '/') {
-            return '';
-        }
-
         if (substr($path, -1) == '/') {
             return $path;
         }
@@ -572,18 +528,47 @@ class StreamWrapper
      *
      * @return array|bool
      */
-    private function urlStatDirectory(StorageObject $object)
+    private function urlStatDirectory()
     {
         $stats = [];
-        $info = $object->info();
+        // 1. try to look up the directory as a file
+        try {
+            $this->object = $this->bucket->object($this->file);
+            $info = $this->object->info();
+
+            // equivalent to 40777 and 40444 in octal
+            $stats['mode'] = $this->bucket->isWritable()
+                ? self::DIRECTORY_WRITABLE_MODE
+                : self::DIRECTORY_READABLE_MODE;
+            $this->statsFromFileInfo($info, $stats);
+
+            return $this->makeStatArray($stats);
+        } catch (NotFoundException $e) {
+        } catch (ServiceException $e) {
+            return false;
+        }
+
+        // 2. try list files in that directory
+        try {
+            $objects = $this->bucket->objects([
+                'prefix' => $this->file,
+            ]);
+
+            if (!$objects->current()) {
+                // can't list objects or doesn't exist
+                return false;
+            }
+        } catch (ServiceException $e) {
+            return false;
+        }
 
         // equivalent to 40777 and 40444 in octal
-        $stats['mode'] = $this->bucket->isWritable()
+        $mode = $this->bucket->isWritable()
             ? self::DIRECTORY_WRITABLE_MODE
             : self::DIRECTORY_READABLE_MODE;
-        $this->statsFromFileInfo($info, $stats);
-
-        return $this->makeStatArray($stats);
+        return $this->makeStatArray([
+            'mode'    => $mode
+        ]);
     }
 
     /**
@@ -634,26 +619,14 @@ class StreamWrapper
     }
 
     /**
-     * Get the given path as a directory.
-     *
-     * In list objects calls, directories are returned with a trailing slash. By
-     * providing the given path with a trailing slash as a list prefix, we can
-     * check whether the given path exists as a directory.
-     *
-     * If the path does not exist or is not a directory, return null.
+     * Return whether we think the provided path is a directory or not
      *
      * @param  string $path
-     * @return StorageObject|null
+     * @return bool
      */
-    private function getDirectoryInfo($path)
+    private function isDirectory($path)
     {
-        $scan = $this->bucket->objects([
-            'prefix' => $this->makeDirectory($path),
-            'resultLimit' => 1,
-            'fields' => 'items/name,items/size,items/updated,items/timeCreated,nextPageToken'
-        ]);
-
-        return $scan->current();
+        return substr($path, -1) == '/';
     }
 
     /**

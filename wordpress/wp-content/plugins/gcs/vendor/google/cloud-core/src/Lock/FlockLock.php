@@ -147,7 +147,7 @@ class FlockLock implements LockInterface
         ];
         $lockType = $this->exclusive ? LOCK_EX : LOCK_SH;
         if (!$options['blocking']) {
-            $lockType |= LOCK_UN;
+            $lockType = $lockType | LOCK_UN;
         }
         return $lockType;
     }

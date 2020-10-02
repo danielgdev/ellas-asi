@@ -17,15 +17,11 @@
 
 namespace Google\Cloud\Core;
 
-use GuzzleHttp\Exception\RequestException;
-
 /**
  * Provides methods for deciding if a request should be retried.
  */
 trait RetryDeciderTrait
 {
-    use JsonTrait;
-
     /**
      * @var array
      */
@@ -66,18 +62,7 @@ trait RetryDeciderTrait
                 return false;
             }
 
-            $message = ($ex instanceof RequestException && $ex->hasResponse())
-                ? (string) $ex->getResponse()->getBody()
-                : $ex->getMessage();
-
-            try {
-                $message = $this->jsonDecode(
-                    $message,
-                    true
-                );
-            } catch (\InvalidArgumentException $ex) {
-                return false;
-            }
+            $message = json_decode($ex->getMessage(), true);
 
             if (!isset($message['error']['errors'])) {
                 return false;

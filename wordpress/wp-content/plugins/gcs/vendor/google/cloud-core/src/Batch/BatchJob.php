@@ -92,7 +92,6 @@ class BatchJob implements JobInterface
         $this->callPeriod = $options['callPeriod'];
         $this->bootstrapFile = $options['bootstrapFile'];
         $this->numWorkers = $options['numWorkers'];
-        $this->initFailureFile();
     }
 
     /**
@@ -163,25 +162,11 @@ class BatchJob implements JobInterface
      */
     public function flush(array $items = [])
     {
-        if (! $this->callFunc($items)) {
+        if (!call_user_func_array($this->func, [$items])) {
             $this->handleFailure($this->id, $items);
             return false;
         }
         return true;
-    }
-
-    /**
-     * Finish any pending activity for this job.
-     *
-     * @access private
-     * @internal
-     *
-     * @param array $items
-     * @return bool
-     */
-    public function callFunc(array $items = [])
-    {
-        return call_user_func_array($this->func, [$items]);
     }
 
     /**

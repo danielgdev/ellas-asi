@@ -17,7 +17,7 @@
  */
 namespace Google\Cloud\Core\Compute;
 
-use Google\Cloud\Core\Compute\Metadata\Readers\HttpHandlerReader;
+use Google\Cloud\Core\Compute\Metadata\Readers\StreamReader;
 use Google\Cloud\Core\Compute\Metadata\Readers\ReaderInterface;
 
 /**
@@ -25,6 +25,9 @@ use Google\Cloud\Core\Compute\Metadata\Readers\ReaderInterface;
  *
  * The metadata is available from Google Compute Engine instances and
  * App Engine Managed VMs instances.
+ *
+ * You can get the GCE metadata values very easily like:
+ *
  *
  * Example:
  * ```
@@ -42,7 +45,7 @@ use Google\Cloud\Core\Compute\Metadata\Readers\ReaderInterface;
 class Metadata
 {
     /**
-     * @var ReaderInterface The metadata reader.
+     * @var StreamReader The metadata reader.
      */
     private $reader;
 
@@ -57,18 +60,16 @@ class Metadata
     private $numericProjectId;
 
     /**
-     * @param ReaderInterface $reader [optional] A metadata reader implementation.
+     * We use StreamReader for the default implementation for fetching the URL.
      */
-    public function __construct(ReaderInterface $reader = null)
+    public function __construct()
     {
-        $this->reader = $reader ?: new HttpHandlerReader();
+        $this->reader = new StreamReader();
     }
 
     /**
      * Replace the default reader implementation
      *
-     * @deprecated If a custom reader implementation is desired, provide it at
-     *     construction.
      * @param ReaderInterface $reader The reader implementation
      */
     public function setReader(ReaderInterface $reader)

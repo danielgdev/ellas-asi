@@ -17,8 +17,6 @@
 
 namespace Google\Cloud\Core;
 
-use Google\Auth\HttpHandler\Guzzle5HttpHandler;
-use Google\Auth\HttpHandler\Guzzle6HttpHandler;
 use Google\Auth\HttpHandler\HttpHandlerFactory;
 use Google\Cloud\BigQuery\BigQueryClient;
 use Google\Cloud\Datastore\DatastoreClient;
@@ -414,7 +412,7 @@ class ServiceBuilder
     private function createClient($class, $packageName, array $config = [])
     {
         if (class_exists($class)) {
-            return new $class($this->resolveConfig($config + $this->config));
+            return new $class($this->resolveConfig($config));
         }
         throw new \Exception(sprintf(
             'The google/cloud-%s package is missing and must be installed.',
@@ -432,14 +430,6 @@ class ServiceBuilder
     {
         if (!isset($config['httpHandler'])) {
             $config['httpHandler'] = HttpHandlerFactory::build();
-        }
-
-        if (!isset($config['asyncHttpHandler'])) {
-            $isGuzzleHandler = $config['httpHandler'] instanceof Guzzle6HttpHandler
-                || $config['httpHandler'] instanceof Guzzle5HttpHandler;
-            $config['asyncHttpHandler'] = $isGuzzleHandler
-                ? [$config['httpHandler'], 'async']
-                : [HttpHandlerFactory::build(), 'async'];
         }
 
         return array_merge($this->config, $config);

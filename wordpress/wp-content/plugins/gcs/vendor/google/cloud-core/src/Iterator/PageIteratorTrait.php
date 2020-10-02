@@ -289,17 +289,13 @@ trait PageIteratorTrait
      */
     private function get(array $path, array $array)
     {
-        $result = $array;
+        $temp = &$array;
 
         foreach ($path as $key) {
-            if (!isset($result[$key])) {
-                return null;
-            }
-
-            $result = $result[$key];
+            $temp = &$temp[$key];
         }
 
-        return $result;
+        return $temp;
     }
 
     /**
