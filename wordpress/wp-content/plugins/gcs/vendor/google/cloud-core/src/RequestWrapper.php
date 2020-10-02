@@ -162,11 +162,11 @@ class RequestWrapper
             $restOptions['timeout'] = $timeout;
         }
 
-        // try {
+        try {
             return $backoff->execute($this->httpHandler, [$this->applyHeaders($request), $restOptions]);
-        // } catch (\Exception $ex) {
-        //     throw $this->convertToGoogleException($ex);
-        // }
+        } catch (\Exception $ex) {
+            throw $this->convertToGoogleException($ex);
+        }
     }
 
     /**

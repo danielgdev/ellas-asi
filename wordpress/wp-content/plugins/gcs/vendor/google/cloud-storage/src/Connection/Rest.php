@@ -394,12 +394,4 @@ class Rest implements ConnectionInterface
     {
         return $this->send('projects.resources.serviceAccount', 'get', $args);
     }
-
-    /**
-     * @param array $args
-     */
-    public function lockRetentionPolicy(array $args = [])
-    {
-        return $this->send('buckets', 'lockRetentionPolicy', $args);
-    }
 }

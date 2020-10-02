@@ -157,9 +157,4 @@ interface ConnectionInterface
      * @param array $args
      */
     public function getServiceAccount(array $args = []);
-
-    /**
-     * @param array $args
-     */
-    public function lockRetentionPolicy(array $args = []);
 }

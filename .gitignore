@@ -1,11 +1,52 @@
-# ignore node dependency directories
-node_modules/
+# General
+*.DS_Store
+.AppleDouble
+.LSOverride
 
-# ignore log files and databases
+# node
+node_modules
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# dev
+*-ferrara_web.sql
+*.asc.json
+._*
+.DS_Store
+vendor
+cloud_sql_proxy
+tmp
+
+# Wordpress
+composer.lock
 *.log
-*.sql
-*.sqlite
+wordpress/wp-content/advanced-cache.php
+wordpress/wp-content/backup-db/
+wordpress/wp-content/backups/
+wordpress/wp-content/blogs.dir/
+wordpress/wp-content/cache/
+wordpress/wp-content/upgrade/
+wordpress/wp-content/uploads/
+wordpress/wp-content/wp-cache-config.php
+wordpress/wp-content/plugins/hello.php
+wordpress/wp-content/themes/ferrara-mexico/assets
 
-# Google App Engine
-backup/
-vendor/*
+#wordpress/.htaccess
+wordpress/license.txt
+wordpress/readme.html
+wordpress/sitemap.xml
+wordpress/sitemap.xml.gz

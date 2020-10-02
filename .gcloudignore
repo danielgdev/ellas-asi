@@ -13,7 +13,15 @@
 .git
 .gitignore
 
-# PHP Composer dependencies:
-node_modules/
-.github/
+# Dev Source
+/src/
 lib/linux/
+
+# PHP Composer dependencies:
+/vendor/
+
+# Node Modules
+node_modules
+
+# GitHub
+.github
