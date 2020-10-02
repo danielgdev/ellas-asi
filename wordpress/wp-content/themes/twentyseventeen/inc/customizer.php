@@ -197,7 +197,6 @@ function twentyseventeen_sanitize_colorscheme( $input ) {
  * Render the site title for the selective refresh partial.
  *
  * @since Twenty Seventeen 1.0
- *
  * @see twentyseventeen_customize_register()
  *
  * @return void
@@ -210,7 +209,6 @@ function twentyseventeen_customize_partial_blogname() {
  * Render the site tagline for the selective refresh partial.
  *
  * @since Twenty Seventeen 1.0
- *
  * @see twentyseventeen_customize_register()
  *
  * @return void

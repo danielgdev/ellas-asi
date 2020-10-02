@@ -17,7 +17,6 @@
 // $onGae is true on production.
 $onGae = isset($_SERVER['GAE_ENV']) ? true : false;
 
-
 // Cache settings
 // Disable cache for now, as this does not work on App Engine for PHP 7.2
 define('WP_CACHE', false);
@@ -48,7 +47,7 @@ if ($onGae) {
     /** The name of the local database for WordPress */
     define('DB_NAME', 'wp_ellasasi');
     /** Local environment MySQL login info */
-    define('DB_HOST', '127.0.0.1');
+    define('DB_HOST', '127.0.0.1:3305');
     define('DB_USER', 'ellasasi_web_user');
     define('DB_PASSWORD', 'LuLEW&IM6d2ZH6');
 }
@@ -68,14 +67,14 @@ define('DB_COLLATE', '');
  *
  * @since 2.6.0
  */
-define('AUTH_KEY',         'TfkuGr7vK/gF9o+NJb2Kin54Y7ExC9US4VhdLLAIgJIYK8yYJlOVTvDKKL/UOcNZ6RKrw82Nzjcz8uqR');
-define('SECURE_AUTH_KEY',  'XycikD1saP569DXSvcNrtyqizvc/8hu24jFVjoFajgEIFTXKci5oLE3DZaSHaaI5kz8MNJDzlYP8eRGg');
-define('LOGGED_IN_KEY',    'qJ2XeU/7/7sMcLhq+klYN3vVqSWsNIRzfBFuVadxiAnmGm5YGlBe2XMWyGq6LezTdlFXfUUnCVfPcDQn');
-define('NONCE_KEY',        'EsKHRogz6+imSKuLUOZvuHHk+qoiwX06fxKbOSBafhn5jGHvHtCpMyXuTza14VxebYtOPmlXuztsID06');
-define('AUTH_SALT',        'cOZriu5A5vFF4NmWzug9SZzC5KO0Y68ameKqWi4j7XK6RTbNR99nRwDJ3lLdPhgZzX0lumU/p3gHzp7o');
-define('SECURE_AUTH_SALT', '1YAbDLuQ5BrbFSxnfhAQwStTUF5gr2R7LF4WST/WoaBOXGOc4AduxqbgkS+hJ9PLN6zXhhmCPtcMn+Pk');
-define('LOGGED_IN_SALT',   'zPeEdrUW1ymsSy6RKhrU6N++K0tlrbFsKIEeZFeK39867jHY+mAzQexYFzwG/Qj6Mzv/AnDL3LeVqdds');
-define('NONCE_SALT',       'xhqN/TxtVtECMNw13KFMB2D2d+L2lWhN5d2S53cgbDInxamOa9O7TL6Lg1sMnCkbmofKrDj0uSKN3JTK');
+define('AUTH_KEY',         'UgjetDGrt0msCOXCPvUJjLqLhZ3Nx54JKj/2fA8Zb3KqouTzzH8piK7g/jYgjXOVkfwfMmmCCtmWLR9j');
+define('SECURE_AUTH_KEY',  'fGPqldvQ+W/5f8Ky6lOhp0wOyxHTirAnaQX1XjfA6lrVmo/D7PaUSBB50ed7DhFFKijSvP6tMEByb6ue');
+define('LOGGED_IN_KEY',    'oJjw5C+jbuPc0Mkowc7vogIJdz2roZ6CpOcS0GEABYG6s5XI/+kEJdHslkLFBLWHBYzXkCg/HhmNqRia');
+define('NONCE_KEY',        'u40iZIauGdHxFiXvIweQemWljlskRpvA+VW4W5Okekso/AfcVB9QI4wct16u+7IdL3oguJDeVDcY0Lsc');
+define('AUTH_SALT',        'rfLRLd7Tb0PHVb3xvI0hygzPG4azmHHVqgnHeZSiZr91SrnkiKwYkcrE5MQVTzfFvV4BJVEaUSstosl6');
+define('SECURE_AUTH_SALT', 'vC9IdtXgMBLVLm92CHI8crXhVA11Vo8iNaSFTGRWNp5J/cxTsBU3BkK1jCYfYgaMg1ypy2NXiwq3lPYm');
+define('LOGGED_IN_SALT',   'syPx/lWrO1Sdl65XRSAxp4AWxokzOnaU9U4wYHRmFuPLWXZu+fyeGowdRC3sa9tv401Hv5Yc5b4tDDnv');
+define('NONCE_SALT',       'Syst0TFKAH+JIG7U07rCDyRx7kaaj3nhfffMaZO/SEuCM3+QjASWrb/J5K1Rtt8zMMiY8uGyfjqSHUs2');
 
 /**#@-*/
 /**
